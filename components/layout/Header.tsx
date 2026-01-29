@@ -1,12 +1,17 @@
 'use client';
 
 import { Bell, Search } from 'lucide-react';
-import { currentUser } from '@/lib/mock-data';
+import { useAuth } from '@/context/AuthContext';
 import { useEquipment } from '@/context/EquipmentContext';
 
 export function Header() {
+  const { currentUser, role } = useAuth();
   const { alerts } = useEquipment();
   const unreadAlerts = alerts.filter((a) => !a.read).length;
+
+  if (!currentUser) {
+    return null;
+  }
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -22,6 +27,18 @@ export function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
+        {/* Role Indicator */}
+        {role === 'it' && (
+          <span className="px-2.5 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
+            IT View
+          </span>
+        )}
+        {role === 'manager' && (
+          <span className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+            Manager View
+          </span>
+        )}
+
         {/* Notifications */}
         <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
           <Bell className="h-5 w-5" />

@@ -25,7 +25,7 @@ interface EquipmentWithUser extends Equipment {
 }
 
 export function EmployeeEquipmentTable() {
-  const { equipment, updateEquipmentStatus, updateEquipmentType } = useEquipment();
+  const { equipment, visibleEquipment, updateEquipmentStatus, updateEquipmentType } = useEquipment();
   const { addToast } = useToast();
   const currentUser = useCurrentUser();
 
@@ -39,13 +39,13 @@ export function EmployeeEquipmentTable() {
   const [filterStatus, setFilterStatus] = useState<EquipmentStatus | 'all'>('all');
   const [filterType, setFilterType] = useState<EquipmentType | 'all'>('all');
 
-  // Join equipment with users
+  // Join equipment with users (using visibleEquipment for role-based filtering)
   const equipmentWithUsers: EquipmentWithUser[] = useMemo(() => {
-    return equipment.map((eq) => ({
+    return visibleEquipment.map((eq) => ({
       ...eq,
       user: getUserById(eq.assignedToUserId),
     }));
-  }, [equipment]);
+  }, [visibleEquipment]);
 
   // Filter and search
   const filteredEquipment = useMemo(() => {
@@ -168,7 +168,7 @@ export function EmployeeEquipmentTable() {
 
       {/* Results count */}
       <div className="text-sm text-gray-500">
-        Showing {filteredEquipment.length} of {equipment.length} items
+        Showing {filteredEquipment.length} of {visibleEquipment.length} items
       </div>
 
       {/* Table */}

@@ -1,3 +1,6 @@
+// User role for authentication
+export type UserRole = 'manager' | 'it';
+
 // User/Employee type (Active Directory User)
 export interface ADUser {
   id: string;

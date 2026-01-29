@@ -1,7 +1,12 @@
-import { currentUser } from '@/lib/mock-data';
+import { useAuth } from '@/context/AuthContext';
 import { ADUser } from '@/types';
 
 export function useCurrentUser(): ADUser {
-  // In a real app, this would fetch the current user from authentication
+  const { currentUser } = useAuth();
+
+  if (!currentUser) {
+    throw new Error('useCurrentUser must be used when authenticated');
+  }
+
   return currentUser;
 }

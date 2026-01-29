@@ -1,12 +1,21 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { LayoutDashboard, Users, Bell, Settings, LogOut } from 'lucide-react';
 import { NavItem } from './NavItem';
 import { useEquipment } from '@/context/EquipmentContext';
+import { useAuth } from '@/context/AuthContext';
 
 export function Sidebar() {
+  const router = useRouter();
   const { alerts } = useEquipment();
+  const { logout } = useAuth();
   const unreadAlerts = alerts.filter((a) => !a.read).length;
+
+  const handleSignOut = () => {
+    logout();
+    router.replace('/login');
+  };
 
   return (
     <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col">
@@ -33,7 +42,10 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 space-y-1">
         <NavItem href="/settings" icon={Settings} label="Settings" />
-        <button className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 w-full transition-colors">
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 w-full transition-colors"
+        >
           <LogOut className="h-5 w-5 text-gray-400" />
           <span>Sign Out</span>
         </button>

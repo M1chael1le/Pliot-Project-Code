@@ -7,6 +7,7 @@ import {
   useCallback,
   ReactNode,
   useEffect,
+  useMemo,
 } from 'react';
 import {
   Equipment,
@@ -25,10 +26,12 @@ import {
   mockUsers,
   getUserById,
 } from '@/lib/mock-data';
+import { useAuth } from './AuthContext';
 
 interface EquipmentContextType {
   // Data
   equipment: Equipment[];
+  visibleEquipment: Equipment[];
   collectionRecords: CollectionRecord[];
   activityLog: ActivityLogEntry[];
   alerts: ITAlert[];
@@ -66,6 +69,7 @@ interface StoredState {
 }
 
 export function EquipmentProvider({ children }: { children: ReactNode }) {
+  const { currentUser, role } = useAuth();
   const [equipment, setEquipment] = useState<Equipment[]>(mockEquipment);
   const [collectionRecords, setCollectionRecords] = useState<CollectionRecord[]>(
     mockCollectionRecords
@@ -100,17 +104,39 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [equipment, collectionRecords, activityLog, alerts]);
 
-  // Calculate dashboard stats
-  const stats: DashboardStats = {
-    totalStaff: mockUsers.length,
-    pendingReturns: equipment.filter((eq) => eq.status === 'pending').length,
-    activeAlerts: alerts.filter((a) => !a.read).length,
-    collectedThisWeek: collectionRecords.filter((cr) => {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      return new Date(cr.collectionDate) >= oneWeekAgo;
-    }).length,
-  };
+  // Compute visible equipment based on role
+  const visibleEquipment = useMemo(() => {
+    if (!currentUser || !role) {
+      return [];
+    }
+
+    // IT role sees all equipment
+    if (role === 'it') {
+      return equipment;
+    }
+
+    // Manager role sees only direct reports' equipment
+    const directReportIds = currentUser.directReports || [];
+    return equipment.filter((eq) => directReportIds.includes(eq.assignedToUserId));
+  }, [equipment, currentUser, role]);
+
+  // Calculate dashboard stats based on visible equipment
+  const stats: DashboardStats = useMemo(() => {
+    const visibleUserIds = role === 'it'
+      ? mockUsers.map(u => u.id)
+      : (currentUser?.directReports || []);
+
+    return {
+      totalStaff: visibleUserIds.length,
+      pendingReturns: visibleEquipment.filter((eq) => eq.status === 'pending').length,
+      activeAlerts: alerts.filter((a) => !a.read).length,
+      collectedThisWeek: collectionRecords.filter((cr) => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return new Date(cr.collectionDate) >= oneWeekAgo;
+      }).length,
+    };
+  }, [visibleEquipment, alerts, collectionRecords, role, currentUser]);
 
   const updateEquipmentStatus = useCallback(
     (equipmentId: string, newStatus: EquipmentStatus, managerId: string) => {
@@ -198,19 +224,20 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
 
   const getEquipmentByUser = useCallback(
     (userId: string) => {
-      return equipment.filter((eq) => eq.assignedToUserId === userId);
+      return visibleEquipment.filter((eq) => eq.assignedToUserId === userId);
     },
-    [equipment]
+    [visibleEquipment]
   );
 
   const getPendingEquipment = useCallback(() => {
-    return equipment.filter((eq) => eq.status === 'pending');
-  }, [equipment]);
+    return visibleEquipment.filter((eq) => eq.status === 'pending');
+  }, [visibleEquipment]);
 
   return (
     <EquipmentContext.Provider
       value={{
         equipment,
+        visibleEquipment,
         collectionRecords,
         activityLog,
         alerts,
