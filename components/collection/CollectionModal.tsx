@@ -3,7 +3,7 @@
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Equipment, EQUIPMENT_TYPE_LABELS } from '@/types';
+import { EQUIPMENT_TYPE_LABELS } from '@/types';
 import { getUserById } from '@/lib/mock-data';
 import { AlertTriangle, Package, User } from 'lucide-react';
 
@@ -11,7 +11,8 @@ interface CollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  equipment: Equipment | null | undefined;
+  equipment: any; // Relaxed type to handle both mock Equipment & Firebase maps
+  isSubmitting?: boolean;
 }
 
 export function CollectionModal({
@@ -19,10 +20,12 @@ export function CollectionModal({
   onClose,
   onConfirm,
   equipment,
+  isSubmitting,
 }: CollectionModalProps) {
   if (!equipment) return null;
 
-  const user = getUserById(equipment.assignedToUserId);
+  const assignedUserId = equipment.assignedToUserId || equipment.assigned_to_id;
+  const user = getUserById(assignedUserId);
 
   return (
     <Modal
@@ -53,7 +56,7 @@ export function CollectionModal({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">
-                {EQUIPMENT_TYPE_LABELS[equipment.type]}
+                {EQUIPMENT_TYPE_LABELS[(equipment.type as keyof typeof EQUIPMENT_TYPE_LABELS)] || equipment.type}
               </p>
               <p className="text-sm text-gray-500">
                 {equipment.make} {equipment.model}
@@ -63,7 +66,7 @@ export function CollectionModal({
 
           <div className="flex items-center justify-between pt-3 border-t border-gray-200">
             <span className="text-sm text-gray-500">Asset Tag</span>
-            <Badge variant="gray">{equipment.assetTag}</Badge>
+            <Badge variant="gray">{equipment.assetTag || equipment.asset_tag}</Badge>
           </div>
 
           <div className="flex items-center justify-between">
@@ -83,22 +86,22 @@ export function CollectionModal({
                 equipment.status === 'assigned'
                   ? 'blue'
                   : equipment.status === 'pending'
-                  ? 'yellow'
-                  : 'green'
+                    ? 'yellow'
+                    : 'green'
               }
             >
-              {equipment.status.charAt(0).toUpperCase() + equipment.status.slice(1)}
+              {equipment.status ? equipment.status.charAt(0).toUpperCase() + equipment.status.slice(1) : 'Unknown'}
             </Badge>
           </div>
         </div>
       </div>
 
       <ModalFooter className="-mx-6 -mb-4 mt-6">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button onClick={onConfirm}>
-          Confirm Collection
+        <Button onClick={onConfirm} disabled={isSubmitting}>
+          {isSubmitting ? 'Updating...' : 'Confirm Collection'}
         </Button>
       </ModalFooter>
     </Modal>

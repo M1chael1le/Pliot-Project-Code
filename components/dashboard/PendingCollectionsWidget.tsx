@@ -10,11 +10,17 @@ import { Clock, Package } from 'lucide-react';
 
 interface PendingCollectionsWidgetProps {
   onMarkCollected?: (equipmentId: string) => void;
+  equipmentList?: any[];
+  isLoading?: boolean;
 }
 
-export function PendingCollectionsWidget({ onMarkCollected }: PendingCollectionsWidgetProps) {
+export function PendingCollectionsWidget({ onMarkCollected, equipmentList, isLoading }: PendingCollectionsWidgetProps) {
   const { getPendingEquipment } = useEquipment();
-  const pendingEquipment = getPendingEquipment();
+
+  // Use passed equipment list if available, otherwise fallback to context
+  const pendingEquipment = equipmentList
+    ? equipmentList.filter(eq => eq.status !== 'COLLECTED')
+    : getPendingEquipment();
 
   return (
     <Card>
@@ -23,10 +29,14 @@ export function PendingCollectionsWidget({ onMarkCollected }: PendingCollections
           <Clock className="h-5 w-5 text-yellow-500" />
           Pending Collections
         </CardTitle>
-        <Badge variant="yellow">{pendingEquipment.length} items</Badge>
+        <Badge variant="yellow">{isLoading ? '...' : pendingEquipment.length} items</Badge>
       </CardHeader>
       <CardContent className="p-0">
-        {pendingEquipment.length === 0 ? (
+        {isLoading ? (
+          <div className="p-6 text-center text-gray-500">
+            <p>Loading...</p>
+          </div>
+        ) : pendingEquipment.length === 0 ? (
           <div className="p-6 text-center text-gray-500">
             <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
             <p>No pending collections</p>
@@ -34,7 +44,9 @@ export function PendingCollectionsWidget({ onMarkCollected }: PendingCollections
         ) : (
           <ul className="divide-y divide-gray-200">
             {pendingEquipment.slice(0, 5).map((eq) => {
-              const user = getUserById(eq.assignedToUserId);
+              // Ensure we have a valid assigned To user ID depending on data source format
+              const assignedUserId = eq.assignedToUserId || eq.assigned_to_id;
+              const user = getUserById(assignedUserId);
               return (
                 <li key={eq.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -42,7 +54,7 @@ export function PendingCollectionsWidget({ onMarkCollected }: PendingCollections
                       {user?.displayName || 'Unknown User'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {EQUIPMENT_TYPE_LABELS[eq.type]} - {eq.assetTag}
+                      {EQUIPMENT_TYPE_LABELS[(eq.type as keyof typeof EQUIPMENT_TYPE_LABELS)] || eq.type} - {eq.assetTag || eq.asset_tag}
                     </p>
                   </div>
                   <Button
@@ -57,7 +69,7 @@ export function PendingCollectionsWidget({ onMarkCollected }: PendingCollections
             })}
           </ul>
         )}
-        {pendingEquipment.length > 5 && (
+        {!isLoading && pendingEquipment.length > 5 && (
           <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
             <p className="text-sm text-gray-500 text-center">
               +{pendingEquipment.length - 5} more items
