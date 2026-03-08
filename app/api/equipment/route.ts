@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
   const managerId = searchParams.get('managerId');
 
-  let result = getEquipment();
+  let result = await getEquipment();
 
   if (userId) {
     result = result.filter((e) => e.assignedToUserId === userId);
@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
   }
 
   if (managerId) {
-    const directReportIds = getUsers()
+    const users = await getUsers();
+    const directReportIds = users
       .filter((u) => u.managerId === managerId)
       .map((u) => u.id);
     result = result.filter((e) => directReportIds.includes(e.assignedToUserId));

@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const managerId = searchParams.get('managerId');
 
-  let result = getUsers();
+  let result = await getUsers();
 
   if (managerId) {
     result = result.filter((u) => u.managerId === managerId);

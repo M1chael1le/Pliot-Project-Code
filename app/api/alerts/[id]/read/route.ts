@@ -7,7 +7,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
 
-  const updated = updateAlert(id, { read: true });
+  const updated = await updateAlert(id, { read: true });
   if (!updated) {
     return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
   }

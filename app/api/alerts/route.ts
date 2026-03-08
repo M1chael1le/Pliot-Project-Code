@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const read = searchParams.get('read');
 
-  let result = getITAlerts();
+  let result = await getITAlerts();
 
   if (read === 'true') {
     result = result.filter((a) => a.read);

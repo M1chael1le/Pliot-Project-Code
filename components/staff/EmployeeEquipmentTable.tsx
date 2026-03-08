@@ -16,7 +16,6 @@ import { CollectionModal } from '@/components/collection/CollectionModal';
 import { useEquipment } from '@/context/EquipmentContext';
 import { useToast } from '@/components/ui/Toast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { mockUsers, getUserById } from '@/lib/mock-data';
 import { Equipment, EquipmentStatus, EquipmentType, ADUser } from '@/types';
 import { User, Package, Building2, Mail } from 'lucide-react';
 
@@ -25,7 +24,7 @@ interface EquipmentWithUser extends Equipment {
 }
 
 export function EmployeeEquipmentTable() {
-  const { equipment, visibleEquipment, updateEquipmentStatus, updateEquipmentType } = useEquipment();
+  const { equipment, visibleEquipment, updateEquipmentStatus, updateEquipmentType, users } = useEquipment();
   const { addToast } = useToast();
   const currentUser = useCurrentUser();
 
@@ -43,9 +42,9 @@ export function EmployeeEquipmentTable() {
   const equipmentWithUsers: EquipmentWithUser[] = useMemo(() => {
     return visibleEquipment.map((eq) => ({
       ...eq,
-      user: getUserById(eq.assignedToUserId),
+      user: users.find((u) => u.id === eq.assignedToUserId),
     }));
-  }, [visibleEquipment]);
+  }, [visibleEquipment, users]);
 
   // Filter and search
   const filteredEquipment = useMemo(() => {

@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { useEquipment } from '@/context/EquipmentContext';
-import { getUserById } from '@/lib/mock-data';
 import { ITAlert } from '@/types';
 import {
   Bell,
@@ -47,7 +46,7 @@ const alertTypeLabels: Record<ITAlert['type'], string> = {
 };
 
 export default function AlertsPage() {
-  const { alerts, markAlertAsRead } = useEquipment();
+  const { alerts, markAlertAsRead, users } = useEquipment();
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
   const filteredAlerts = alerts.filter((alert) => {
@@ -172,7 +171,7 @@ export default function AlertsPage() {
             <ul className="divide-y divide-gray-200">
               {filteredAlerts.map((alert) => {
                 const Icon = alertTypeIcons[alert.type];
-                const user = getUserById(alert.userId);
+                const user = users.find((u) => u.id === alert.userId);
 
                 return (
                   <li

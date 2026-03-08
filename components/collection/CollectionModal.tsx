@@ -4,14 +4,14 @@ import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EQUIPMENT_TYPE_LABELS } from '@/types';
-import { getUserById } from '@/lib/mock-data';
+import { useEquipment } from '@/context/EquipmentContext';
 import { AlertTriangle, Package, User } from 'lucide-react';
 
 interface CollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  equipment: any; // Relaxed type to handle both mock Equipment & Firebase maps
+  equipment: any;
   isSubmitting?: boolean;
 }
 
@@ -22,10 +22,12 @@ export function CollectionModal({
   equipment,
   isSubmitting,
 }: CollectionModalProps) {
+  const { users } = useEquipment();
+
   if (!equipment) return null;
 
   const assignedUserId = equipment.assignedToUserId || equipment.assigned_to_id;
-  const user = getUserById(assignedUserId);
+  const user = users.find((u) => u.id === assignedUserId);
 
   return (
     <Modal

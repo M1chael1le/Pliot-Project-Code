@@ -17,15 +17,8 @@ import {
   ActivityLogEntry,
   ITAlert,
   DashboardStats,
+  ADUser,
 } from '@/types';
-import {
-  mockEquipment,
-  mockCollectionRecords,
-  mockActivityLog,
-  mockITAlerts,
-  mockUsers,
-  getUserById,
-} from '@/lib/mock-data';
 import { useAuth } from './AuthContext';
 
 interface EquipmentContextType {
@@ -36,6 +29,7 @@ interface EquipmentContextType {
   activityLog: ActivityLogEntry[];
   alerts: ITAlert[];
   stats: DashboardStats;
+  users: ADUser[];
 
   // Actions
   updateEquipmentStatus: (
@@ -59,50 +53,38 @@ export function useEquipment() {
   return context;
 }
 
-const STORAGE_KEY = 'equipment_manager_state';
-
-interface StoredState {
-  equipment: Equipment[];
-  collectionRecords: CollectionRecord[];
-  activityLog: ActivityLogEntry[];
-  alerts: ITAlert[];
-}
-
 export function EquipmentProvider({ children }: { children: ReactNode }) {
   const { currentUser, role } = useAuth();
-  const [equipment, setEquipment] = useState<Equipment[]>(mockEquipment);
-  const [collectionRecords, setCollectionRecords] = useState<CollectionRecord[]>(
-    mockCollectionRecords
-  );
-  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>(mockActivityLog);
-  const [alerts, setAlerts] = useState<ITAlert[]>(mockITAlerts);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [collectionRecords, setCollectionRecords] = useState<CollectionRecord[]>([]);
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+  const [alerts, setAlerts] = useState<ITAlert[]>([]);
+  const [users, setUsers] = useState<ADUser[]>([]);
 
-  // Load from localStorage on mount
+  // Fetch all data from API on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const state: StoredState = JSON.parse(stored);
-        setEquipment(state.equipment);
-        setCollectionRecords(state.collectionRecords);
-        setActivityLog(state.activityLog);
-        setAlerts(state.alerts);
-      } catch (e) {
-        console.error('Failed to load state from localStorage:', e);
-      }
-    }
+    Promise.all([
+      fetch('/api/equipment').then((r) => r.json()),
+      fetch('/api/staff').then((r) => r.json()),
+      fetch('/api/activity').then((r) => r.json()),
+      fetch('/api/alerts').then((r) => r.json()),
+    ])
+      .then(([eqData, staffData, actData, alertData]) => {
+        setEquipment(eqData.data);
+        setUsers(staffData.data);
+        setActivityLog(actData.data);
+        setAlerts(alertData.data);
+      })
+      .catch((err) => console.error('Failed to fetch data:', err));
   }, []);
 
-  // Save to localStorage on state change
-  useEffect(() => {
-    const state: StoredState = {
-      equipment,
-      collectionRecords,
-      activityLog,
-      alerts,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [equipment, collectionRecords, activityLog, alerts]);
+  // Helper to find user by ID
+  const getUserById = useCallback(
+    (id: string): ADUser | undefined => {
+      return users.find((u) => u.id === id);
+    },
+    [users]
+  );
 
   // Compute visible equipment based on role
   const visibleEquipment = useMemo(() => {
@@ -116,16 +98,16 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
     }
 
     // Manager role sees only direct reports' equipment based on mock data linkage
-    const linkedMockUser = mockUsers.find(u => u.email.toLowerCase() === currentUser.email?.toLowerCase());
+    const linkedMockUser = users.find(u => u.email.toLowerCase() === currentUser.email?.toLowerCase());
     const directReportIds = linkedMockUser?.directReports || [];
     return equipment.filter((eq) => directReportIds.includes(eq.assignedToUserId));
-  }, [equipment, currentUser, role]);
+  }, [equipment, currentUser, role, users]);
 
   // Calculate dashboard stats based on visible equipment
   const stats: DashboardStats = useMemo(() => {
-    const linkedMockUser = mockUsers.find(u => u.email.toLowerCase() === currentUser?.email?.toLowerCase());
+    const linkedMockUser = users.find(u => u.email.toLowerCase() === currentUser?.email?.toLowerCase());
     const visibleUserIds = role === 'it'
-      ? mockUsers.map(u => u.id)
+      ? users.map(u => u.id)
       : (linkedMockUser?.directReports || []);
 
     return {
@@ -138,72 +120,59 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
         return new Date(cr.collectionDate) >= oneWeekAgo;
       }).length,
     };
-  }, [visibleEquipment, alerts, collectionRecords, role, currentUser]);
+  }, [visibleEquipment, alerts, collectionRecords, role, currentUser, users]);
 
   const updateEquipmentStatus = useCallback(
     (equipmentId: string, newStatus: EquipmentStatus, managerId: string) => {
       const eq = equipment.find((e) => e.id === equipmentId);
       if (!eq) return;
 
-      const user = getUserById(eq.assignedToUserId);
-      const oldStatus = eq.status;
-
-      // Update equipment
-      setEquipment((prev) =>
-        prev.map((e) => (e.id === equipmentId ? { ...e, status: newStatus } : e))
-      );
-
-      // Create activity log entry
-      const activityEntry: ActivityLogEntry = {
-        id: `act-${Date.now()}`,
-        type: newStatus === 'returned' ? 'collection' : 'status_change',
-        description:
-          newStatus === 'returned'
-            ? `${eq.type.charAt(0).toUpperCase() + eq.type.slice(1)} (${eq.assetTag}) collected from ${user?.displayName || 'Unknown'}`
-            : `${eq.type.charAt(0).toUpperCase() + eq.type.slice(1)} status changed from ${oldStatus} to ${newStatus}`,
-        userId: eq.assignedToUserId,
-        equipmentId: eq.id,
-        timestamp: new Date().toISOString(),
-        performedBy: managerId,
-      };
-      setActivityLog((prev) => [activityEntry, ...prev]);
-
-      // If status changed to 'returned', create collection record and IT alert
       if (newStatus === 'returned') {
-        const collectionRecord: CollectionRecord = {
-          id: `col-${Date.now()}`,
-          equipmentId: eq.id,
-          userId: eq.assignedToUserId,
-          collectedByManagerId: managerId,
-          collectionDate: new Date().toISOString(),
-          itNotified: true,
-        };
-        setCollectionRecords((prev) => [...prev, collectionRecord]);
-
-        const alert: ITAlert = {
-          id: `alert-${Date.now()}`,
-          type: 'collection',
-          message: `Equipment collected: ${eq.type.charAt(0).toUpperCase() + eq.type.slice(1)} (${eq.assetTag}) from ${user?.displayName || 'Unknown'}`,
-          equipmentId: eq.id,
-          userId: eq.assignedToUserId,
-          createdAt: new Date().toISOString(),
-          read: false,
-        };
-        setAlerts((prev) => [alert, ...prev]);
-      }
-
-      // If status changed to 'pending', create pending return alert
-      if (newStatus === 'pending') {
-        const alert: ITAlert = {
-          id: `alert-${Date.now()}`,
-          type: 'pending_return',
-          message: `Equipment pending return: ${eq.type.charAt(0).toUpperCase() + eq.type.slice(1)} (${eq.assetTag}) from ${user?.displayName || 'Unknown'}`,
-          equipmentId: eq.id,
-          userId: eq.assignedToUserId,
-          createdAt: new Date().toISOString(),
-          read: false,
-        };
-        setAlerts((prev) => [alert, ...prev]);
+        // Use the collect endpoint
+        fetch(`/api/equipment/${equipmentId}/collect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ managerId }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.data) {
+              setEquipment((prev) =>
+                prev.map((e) => (e.id === equipmentId ? data.data.equipment : e))
+              );
+              if (data.data.alert) {
+                setAlerts((prev) => [data.data.alert, ...prev]);
+              }
+              // Refresh activity log
+              fetch('/api/activity')
+                .then((r) => r.json())
+                .then((d) => setActivityLog(d.data));
+            }
+          })
+          .catch((err) => console.error('Failed to collect equipment:', err));
+      } else {
+        // Use the status endpoint
+        fetch(`/api/equipment/${equipmentId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, managerId }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.data) {
+              setEquipment((prev) =>
+                prev.map((e) => (e.id === equipmentId ? data.data.equipment : e))
+              );
+              // Refresh alerts and activity log
+              fetch('/api/alerts')
+                .then((r) => r.json())
+                .then((d) => setAlerts(d.data));
+              fetch('/api/activity')
+                .then((r) => r.json())
+                .then((d) => setActivityLog(d.data));
+            }
+          })
+          .catch((err) => console.error('Failed to update status:', err));
       }
     },
     [equipment]
@@ -211,6 +180,14 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
 
   const updateEquipmentType = useCallback(
     (equipmentId: string, newType: EquipmentType) => {
+      // Update via API
+      fetch(`/api/equipment/${equipmentId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: newType }),
+      }).catch((err) => console.error('Failed to update type:', err));
+
+      // Optimistic update
       setEquipment((prev) =>
         prev.map((e) => (e.id === equipmentId ? { ...e, type: newType } : e))
       );
@@ -219,9 +196,16 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
   );
 
   const markAlertAsRead = useCallback((alertId: string) => {
-    setAlerts((prev) =>
-      prev.map((a) => (a.id === alertId ? { ...a, read: true } : a))
-    );
+    fetch(`/api/alerts/${alertId}/read`, { method: 'PATCH' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.data) {
+          setAlerts((prev) =>
+            prev.map((a) => (a.id === alertId ? { ...a, read: true } : a))
+          );
+        }
+      })
+      .catch((err) => console.error('Failed to mark alert as read:', err));
   }, []);
 
   const getEquipmentByUser = useCallback(
@@ -244,6 +228,7 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
         activityLog,
         alerts,
         stats,
+        users,
         updateEquipmentStatus,
         updateEquipmentType,
         markAlertAsRead,
