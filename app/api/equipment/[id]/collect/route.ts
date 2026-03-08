@@ -21,7 +21,7 @@ export async function POST(
     return NextResponse.json({ error: 'managerId is required' }, { status: 400 });
   }
 
-  const eq = findEquipment(id);
+  const eq = await findEquipment(id);
   if (!eq) {
     return NextResponse.json({ error: 'Equipment not found' }, { status: 404 });
   }
@@ -30,16 +30,16 @@ export async function POST(
     return NextResponse.json({ error: 'Equipment is already returned' }, { status: 400 });
   }
 
-  const user = findUser(eq.assignedToUserId);
+  const user = await findUser(eq.assignedToUserId);
   const userName = user?.displayName || 'Unknown';
   const typeLabel = eq.type.charAt(0).toUpperCase() + eq.type.slice(1);
   const now = new Date().toISOString();
 
   // Update equipment status
-  const updated = updateEquipment(id, { status: 'returned' })!;
+  const updated = (await updateEquipment(id, { status: 'returned' }))!;
 
   // Create collection record
-  addCollectionRecord({
+  await addCollectionRecord({
     id: nextId('col'),
     equipmentId: eq.id,
     userId: eq.assignedToUserId,
@@ -58,10 +58,10 @@ export async function POST(
     createdAt: now,
     read: false,
   };
-  addITAlert(alert);
+  await addITAlert(alert);
 
   // Create activity log entry
-  addActivityLogEntry({
+  await addActivityLogEntry({
     id: nextId('act'),
     type: 'collection',
     description: `${typeLabel} (${eq.assetTag}) collected from ${userName}`,

@@ -2,14 +2,15 @@
 
 import { CheckCircle } from 'lucide-react';
 import { Equipment, EQUIPMENT_TYPE_LABELS } from '@/types';
-import { getUserById } from '@/lib/mock-data';
+import { useEquipment } from '@/context/EquipmentContext';
 
 interface CollectionConfirmationProps {
   equipment: Equipment;
 }
 
 export function CollectionConfirmation({ equipment }: CollectionConfirmationProps) {
-  const user = getUserById(equipment.assignedToUserId);
+  const { users } = useEquipment();
+  const user = users.find((u) => u.id === equipment.assignedToUserId);
 
   return (
     <div className="text-center py-4">

@@ -9,7 +9,6 @@ import {
   ReactNode,
 } from 'react';
 import { ADUser, UserRole } from '@/types';
-import { mockUsers } from '@/lib/mock-data';
 
 interface AuthState {
   currentUser: ADUser | null;
@@ -51,23 +50,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const state: StoredAuthState = JSON.parse(stored);
-        const user = mockUsers.find((u) => u.id === state.userId);
-        if (user) {
-          setCurrentUser(user);
-          setRole(state.role);
-        }
+        // Fetch user from API instead of mock data
+        fetch('/api/staff')
+          .then((res) => res.json())
+          .then((data) => {
+            const user = (data.data as ADUser[]).find((u) => u.id === state.userId);
+            if (user) {
+              setCurrentUser(user);
+              setRole(state.role);
+            }
+          })
+          .catch((e) => {
+            console.error('Failed to fetch users:', e);
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+          })
+          .finally(() => setIsLoading(false));
       } catch (e) {
         console.error('Failed to load auth state from localStorage:', e);
         localStorage.removeItem(AUTH_STORAGE_KEY);
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = useCallback(
     async (email: string, password: string, role: UserRole): Promise<boolean> => {
+      // Fetch users from API
+      const res = await fetch('/api/staff');
+      const data = await res.json();
+      const users = data.data as ADUser[];
+
       // Find user by email (case-insensitive)
-      const user = mockUsers.find(
+      const user = users.find(
         (u) => u.email.toLowerCase() === email.toLowerCase()
       );
 

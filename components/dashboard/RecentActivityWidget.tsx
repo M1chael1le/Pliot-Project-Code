@@ -3,7 +3,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useEquipment } from '@/context/EquipmentContext';
-import { getUserById } from '@/lib/mock-data';
 import { Activity, ArrowRight, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { ActivityLogEntry } from '@/types';
 
@@ -36,7 +35,7 @@ const typeBadgeVariants: Record<ActivityLogEntry['type'], 'green' | 'blue' | 'ye
 };
 
 export function RecentActivityWidget() {
-  const { activityLog } = useEquipment();
+  const { activityLog, users } = useEquipment();
   const recentActivity = activityLog.slice(0, 8);
 
   return (
@@ -59,7 +58,7 @@ export function RecentActivityWidget() {
               const Icon = typeIcons[activity.type];
               const performer = activity.performedBy === 'system'
                 ? 'System'
-                : getUserById(activity.performedBy)?.displayName || 'Unknown';
+                : users.find((u) => u.id === activity.performedBy)?.displayName || 'Unknown';
 
               return (
                 <li key={activity.id} className="px-6 py-3">

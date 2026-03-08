@@ -4,7 +4,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useEquipment } from '@/context/EquipmentContext';
-import { getUserById } from '@/lib/mock-data';
 import { EQUIPMENT_TYPE_LABELS } from '@/types';
 import { Clock, Package } from 'lucide-react';
 
@@ -15,7 +14,7 @@ interface PendingCollectionsWidgetProps {
 }
 
 export function PendingCollectionsWidget({ onMarkCollected, equipmentList, isLoading }: PendingCollectionsWidgetProps) {
-  const { getPendingEquipment } = useEquipment();
+  const { getPendingEquipment, users } = useEquipment();
 
   // Use passed equipment list if available, otherwise fallback to context
   const pendingEquipment = equipmentList
@@ -44,9 +43,8 @@ export function PendingCollectionsWidget({ onMarkCollected, equipmentList, isLoa
         ) : (
           <ul className="divide-y divide-gray-200">
             {pendingEquipment.slice(0, 5).map((eq) => {
-              // Ensure we have a valid assigned To user ID depending on data source format
               const assignedUserId = eq.assignedToUserId || eq.assigned_to_id;
-              const user = getUserById(assignedUserId);
+              const user = users.find((u) => u.id === assignedUserId);
               return (
                 <li key={eq.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex-1 min-w-0">
