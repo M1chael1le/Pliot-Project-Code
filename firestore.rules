@@ -1,32 +1,16 @@
 rules_version = '2';
 
+rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Equipment collection: Allow read and update only if authenticated
-    match /equipment/{docId} {
-      allow read: if isAuthenticated();
-      allow update: if isAuthenticated();
-      // Adjust write/create rules as per your system's requirement
-      allow create, delete: if false; 
-    }
-
-    // Users collection: Allow read if authenticated
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      // Adjust write rules as per your system's requirement
-      allow write: if false; 
-    }
-
-    // Collection events: Allow create if authenticated
-    match /collection_events/{eventId} {
-      allow create: if isAuthenticated();
-      allow read: if isAuthenticated();
-      allow update, delete: if false;
+    // DEVELOPMENT RULES - WARNING: DO NOT USE IN PRODUCTION
+    // These rules allow anyone to read and write to your database.
+    // We are using these temporarily because the portal does not have 
+    // real Firebase Authentication setup yet.
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
+

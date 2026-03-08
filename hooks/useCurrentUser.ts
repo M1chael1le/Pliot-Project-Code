@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
-import { ADUser } from '@/types';
+import { User } from 'firebase/auth';
 
-export function useCurrentUser(): ADUser {
+export function useCurrentUser(): User {
   const { currentUser } = useAuth();
 
   if (!currentUser) {

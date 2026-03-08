@@ -87,7 +87,7 @@ export function EmployeeEquipmentTable() {
       });
     } else {
       // For other status changes, update directly
-      updateEquipmentStatus(equipmentId, newStatus, currentUser.id);
+      updateEquipmentStatus(equipmentId, newStatus, currentUser.uid);
       if (newStatus === 'pending') {
         addToast('info', 'Equipment marked as pending return. IT has been notified.');
       } else {
@@ -108,7 +108,7 @@ export function EmployeeEquipmentTable() {
       updateEquipmentStatus(
         collectionModal.equipmentId,
         collectionModal.pendingStatus,
-        currentUser.id
+        currentUser.uid
       );
       addToast('success', 'Equipment marked as returned. IT has been notified.');
     }

@@ -115,16 +115,18 @@ export function EquipmentProvider({ children }: { children: ReactNode }) {
       return equipment;
     }
 
-    // Manager role sees only direct reports' equipment
-    const directReportIds = currentUser.directReports || [];
+    // Manager role sees only direct reports' equipment based on mock data linkage
+    const linkedMockUser = mockUsers.find(u => u.email.toLowerCase() === currentUser.email?.toLowerCase());
+    const directReportIds = linkedMockUser?.directReports || [];
     return equipment.filter((eq) => directReportIds.includes(eq.assignedToUserId));
   }, [equipment, currentUser, role]);
 
   // Calculate dashboard stats based on visible equipment
   const stats: DashboardStats = useMemo(() => {
+    const linkedMockUser = mockUsers.find(u => u.email.toLowerCase() === currentUser?.email?.toLowerCase());
     const visibleUserIds = role === 'it'
       ? mockUsers.map(u => u.id)
-      : (currentUser?.directReports || []);
+      : (linkedMockUser?.directReports || []);
 
     return {
       totalStaff: visibleUserIds.length,

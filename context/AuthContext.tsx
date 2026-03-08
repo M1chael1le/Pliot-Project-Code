@@ -8,29 +8,25 @@ import {
   useEffect,
   ReactNode,
 } from 'react';
-import { ADUser, UserRole } from '@/types';
-import { mockUsers } from '@/lib/mock-data';
+import { UserRole } from '@/types';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { signInWithGoogle, syncUserToFirestore } from '@/services/authService';
 
 interface AuthState {
-  currentUser: ADUser | null;
+  currentUser: User | null;
   role: UserRole | null;
   isAuthenticated: boolean;
 }
 
 interface AuthContextType extends AuthState {
   isLoading: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
+  login: (role: UserRole) => Promise<boolean>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const AUTH_STORAGE_KEY = 'auth_state';
-
-interface StoredAuthState {
-  userId: string;
-  role: UserRole;
-}
 
 export function useAuth() {
   const context = useContext(AuthContext);
@@ -41,60 +37,65 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<ADUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load auth state from localStorage on mount
+  // Listen to Firebase Auth state changes
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      try {
-        const state: StoredAuthState = JSON.parse(stored);
-        const user = mockUsers.find((u) => u.id === state.userId);
-        if (user) {
-          setCurrentUser(user);
-          setRole(state.role);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
+
+        // Fetch their associated role from Firestore
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setRole(data.role as UserRole);
+          } else {
+            // Fallback if they haven't synced yet
+            setRole('manager');
+          }
+        } catch (error) {
+          console.error("Error fetching user role", error);
         }
-      } catch (e) {
-        console.error('Failed to load auth state from localStorage:', e);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+      } else {
+        setCurrentUser(null);
+        setRole(null);
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string, role: UserRole): Promise<boolean> => {
-      // Find user by email (case-insensitive)
-      const user = mockUsers.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase()
-      );
+    async (selectedRole: UserRole): Promise<boolean> => {
+      try {
+        setIsLoading(true);
+        const user = await signInWithGoogle();
+        await syncUserToFirestore(user, selectedRole);
 
-      if (!user) {
+        // State is technically updated by the onAuthStateChanged listener above, 
+        // but we can fast-track the role here
+        setRole(selectedRole);
+        return true;
+      } catch (error) {
+        console.error("Login failed:", error);
+        setIsLoading(false);
         return false;
       }
-
-      // Mock auth: any password is accepted
-      setCurrentUser(user);
-      setRole(role);
-
-      // Save to localStorage
-      const authState: StoredAuthState = {
-        userId: user.id,
-        role,
-      };
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authState));
-
-      return true;
     },
     []
   );
 
-  const logout = useCallback(() => {
-    setCurrentUser(null);
-    setRole(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   }, []);
 
   const isAuthenticated = currentUser !== null && role !== null;

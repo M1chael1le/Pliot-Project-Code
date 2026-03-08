@@ -50,16 +50,17 @@ export function Header() {
         {/* User */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <span className="text-blue-600 font-medium text-sm">
-              {currentUser.displayName
+            <span className="text-[#3b82f6] font-medium">
+              {(currentUser.displayName || currentUser.email || 'User')
                 .split(' ')
                 .map((n) => n[0])
+                .slice(0, 2)
                 .join('')}
             </span>
           </div>
-          <div className="text-sm">
-            <p className="font-medium text-gray-900">{currentUser.displayName}</p>
-            <p className="text-gray-500 text-xs">{currentUser.title}</p>
+          <div className="hidden md:block text-right">
+            <p className="font-medium text-gray-900">{currentUser.displayName || currentUser.email}</p>
+            <p className="text-gray-500 text-xs capitalize">{role || 'User'}</p>
           </div>
         </div>
       </div>
